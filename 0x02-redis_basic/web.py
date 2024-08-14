@@ -2,35 +2,38 @@
 """
 web cache and tracker
 """
+
 import requests
 import redis
 from functools import wraps
+from typing import Callable
 
-store = redis.Redis()
+# Connect to Redis server
+r = redis.Redis()
 
+def cache_page(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(url: str) -> str:
+        # Increment the count for the URL
+        r.incr(f"count:{url}")
 
-def count_url_access(method):
-    """ Decorator counting how many times
-    a URL is accessed """
-    @wraps(method)
-    def wrapper(url):
-        cached_key = "cached:" + url
-        cached_data = store.get(cached_key)
-        if cached_data:
-            return cached_data.decode("utf-8")
+        # Check if the URL content is cached
+        cached_content = r.get(f"cached:{url}")
+        if cached_content:
+            return cached_content.decode('utf-8')
 
-        count_key = "count:" + url
-        html = method(url)
-
-        store.incr(count_key)
-        store.set(cached_key, html)
-        store.expire(cached_key, 10)
-        return html
+        # If not cached, fetch and cache it
+        content = func(url)
+        r.setex(f"cached:{url}", 10, content)  # Cache for 10 seconds
+        return content
     return wrapper
 
-
-@count_url_access
+@cache_page
 def get_page(url: str) -> str:
-    """ Returns HTML content of a url """
-    res = requests.get(url)
-    return res.text
+    response = requests.get(url)
+    return response.text
+
+if __name__ == "__main__":
+    # Test the function with a slow response URL
+    url = "http://slowwly.robertomurray.co.uk/delay/5000/url/http://www.google.com"
+    print(get_page(url))
