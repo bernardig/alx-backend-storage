@@ -34,3 +34,7 @@ def get_page(url: str) -> str:
     """ Returns HTML content of a url """
     res = requests.get(url)
     return res.text
+
+if __name__ == "__main__":
+    print(get_page("http://slowwly.robertomurray.co.uk/delay/5000/url/http://www.google.co.uk"))
+    print(redis_instance.get("count:http://slowwly.robertomurray.co.uk/delay/5000/url/http://www.google.co.uk"))
